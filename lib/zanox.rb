@@ -21,6 +21,11 @@ module ZanoxAPI
 
     format :json
 
+    def self.prepare options = {}
+      @@connect_id = options[:connect_id] || @@connect_id
+      @@secret_key = options[:secret_key] || @@secret_key
+    end
+
     def self.request (method, options = {})
       begin
         options.merge!(:connectid => @@connect_id)
@@ -63,6 +68,7 @@ module ZanoxAPI
     end
 
     def self.format_date (date)
+      date = Time.parse(date) if date.class == String
       "%d-%0*d-%0*d" % [date.year, 2, date.month, 2, date.day]
     end
 
@@ -74,8 +80,8 @@ module ZanoxAPI
   module Report
 
     def self.basic (from, to, options = {})
-      options.merge!(:fromdate  => ZanoxAPI::API.format_date(from),
-                         :todate    => ZanoxAPI::API.format_date(to))
+      options.merge!( fromdate: ZanoxAPI::API.format_date(from),
+                      todate: ZanoxAPI::API.format_date(to))
       ZanoxAPI::API.request('/reports/basic', options)
     end
 
@@ -95,17 +101,22 @@ module ZanoxAPI
       ZanoxAPI::API.request('/reports/leads/lead/' + lead_id, options)
     end
 
-    def self.gpp (from, to, options = {})
-      sales = (from.to_date..to.to_date).map do |date|
-        ZanoxAPI::Report.sales(date, options)
+    def self.sales_per_program (from, to, options = {}, program_id)
+      report = ZanoxAPI::Report.basic from, to, options
+
+      sales = report.to_hash['reportItems']['reportItem'].map do |item|
+        Time.parse(item['day']).to_date if item['total']['saleCount'] != 0
+      end.compact.map do |date|
+        ZanoxAPI::Report.sales(date, options).to_hash
       end
 
-      salesitems = []
-      sales.each do |salesday|
-        if salesday[:items] > 0
-          salesitems += salesday[:salesitems]
-        end
+      mapped_sales = sales.map do |sale|
+        sale['saleItems']['saleItem']
+      end.flatten.map do |sale_per_program|
+        sale_per_program if sale_per_program['program']['@id'] == program_id.to_s
       end
+
+      {orders: mapped_sales}
 
     end
   end
