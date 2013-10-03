@@ -103,9 +103,9 @@ module ZanoxAPI
 
     def self.sales_per_program (from, to, options = {}, program_id)
       report = ZanoxAPI::Report.basic from, to, options
-      items = nil
-      
-      return {orders: []} if items = report.to_hash['reportItems'] == nil
+      items = report.to_hash['reportItems']
+
+      return {orders: []} if items == nil
       sales = items['reportItem'].map do |item|
         Time.parse(item['day']).to_date if item['total']['saleCount'] != 0
       end.compact.map do |date|
