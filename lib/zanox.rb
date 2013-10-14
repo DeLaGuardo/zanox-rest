@@ -67,8 +67,11 @@ module ZanoxAPI
       Base64.encode64(HMAC::SHA1.new(@@secret_key).update(string2sign).digest)[0..-2]
     end
 
-    def self.format_date (date)
+    def self.format_date (date, is_end = false)
       date = Time.parse(date) if date.class == String
+      if is_end
+        date = date + 1.day
+      end
       "%d-%0*d-%0*d" % [date.year, 2, date.month, 2, date.day]
     end
 
@@ -81,7 +84,7 @@ module ZanoxAPI
 
     def self.basic (from, to, options = {})
       options.merge!( fromdate: ZanoxAPI::API.format_date(from),
-                      todate: ZanoxAPI::API.format_date(to))
+                      todate: ZanoxAPI::API.format_date(to, true))
       ZanoxAPI::API.request('/reports/basic', options)
     end
 
